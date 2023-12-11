@@ -6,16 +6,16 @@ namespace Task1
 
 def calibration (s : String) : Option Nat := do
   let l := s.data.filter Char.isDigit
-  (String.mk [<- l.head?, <- l.last']).toNat?
+  (String.mk [← l.head?, ← l.last']).toNat?
 
 def task1 (input : List String) : Option Nat :=
   List.foldr (·+·) 0 <$> List.mapM calibration input
 
 def main : IO Unit := do
-  let test <- IO.FS.lines (System.FilePath.mk "Data/Day1/test.txt")
+  let test ← IO.FS.lines (System.FilePath.mk "Data/Day1/test.txt")
   println! "Test: {task1 test.data}"
   println! "Expected: {some 142}"
-  let task <- IO.FS.lines (System.FilePath.mk "Data/Day1/task.txt")
+  let task ← IO.FS.lines (System.FilePath.mk "Data/Day1/task.txt")
   println! "Task: {task1 task.data}"
 
 end Task1
@@ -70,19 +70,19 @@ def rightDigit (s : String) : Option Nat :=
   rightDigit' s.data.reverse
 
 def calibration (s : String) : Option Nat := do
-  (<- leftDigit s) * 10 + (<- rightDigit s)
+  (← leftDigit s) * 10 + (← rightDigit s)
 
 def task2 (input : List String) : Option Nat :=
   List.foldr (·+·) 0 <$> List.mapM calibration input
 
 def main : IO Unit := do
-  let test <- IO.FS.lines (System.FilePath.mk "Data/Day1/test.txt")
+  let test ← IO.FS.lines (System.FilePath.mk "Data/Day1/test.txt")
   println! "Test: {task2 test.data}"
   println! "Expected: {some 142}"
-  let test <- IO.FS.lines (System.FilePath.mk "Data/Day1/test2.txt")
+  let test ← IO.FS.lines (System.FilePath.mk "Data/Day1/test2.txt")
   println! "Test: {task2 test.data}"
   println! "Expected: {some 281}"
-  let task <- IO.FS.lines (System.FilePath.mk "Data/Day1/task.txt")
+  let task ← IO.FS.lines (System.FilePath.mk "Data/Day1/task.txt")
   println! "Task: {task2 task.data}"
 
 end Task2
