@@ -21,11 +21,24 @@ instance : Zero Count where
   }
 
 instance : Add Count where
-  add := fun a b => {
+  add a b := {
     R := a.R + b.R
     G := a.G + b.G
     B := a.B + b.B
   }
+
+instance : Max Count where
+  max a b := {
+    R := max a.R b.R
+    G := max a.G b.G
+    B := max a.B b.B
+  }
+
+def isValid (c : Count) : Bool :=
+  c.R ≤ 12 && c.G ≤ 13 && c.B ≤ 14
+
+def power (c : Count) : Nat :=
+  c.R * c.G * c.B 
 
 open Lean.Parsec
 
@@ -67,9 +80,6 @@ def parser : Lean.Parsec Count := do
   | Except.error s =>
     fail s 
 
-def isValid (c : Count) : Bool :=
-  c.R ≤ 12 && c.G ≤ 13 && c.B ≤ 14
-
 end Count
 
 structure Game where
@@ -77,6 +87,16 @@ structure Game where
   rounds : List Count
 
 namespace Game
+
+def isValid (g : Game) : Bool := 
+  g.rounds.all Count.isValid
+
+def minSet (g : Game) : Count :=
+  /-
+  I'd like to use List.maximum or something here but apparently
+  mathlib doesn't have a version that uses the type's bot as the start
+  -/
+  g.rounds.foldl max 0
 
 open Lean.Parsec
 
@@ -100,9 +120,6 @@ def parser : Lean.Parsec Game := do
 
 def parse (s : String) : Except String Game := parser.run s
 
-def isValid (g : Game) : Bool := 
-  g.rounds.all Count.isValid
-
 end Game
 
 namespace Task1
@@ -121,10 +138,28 @@ def main : IO Unit := do
 
 end Task1
 
+namespace Task2
+
+def task2 (games : List Game) : Nat :=
+  (Count.power <$> Game.minSet <$> games).sum
+
+def main : IO Unit := do
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day2/test.txt")
+  let games ← IO.ofExcept (lines.data.mapM Game.parse)
+  println! "Test: {task2 games}"
+  println! "Expected: {2286}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day2/task.txt")
+  let games ← IO.ofExcept (lines.data.mapM Game.parse)
+  println! "Task: {task2 games}"
+
+end Task2 
+
 def main : IO Unit := do
   println! "Day 2"
   println! "Task 1"
   Task1.main
+  println! ""
+  Task2.main
   println! ""
 
 end Day2
