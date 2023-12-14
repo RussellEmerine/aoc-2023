@@ -1,6 +1,13 @@
 import Mathlib.Tactic.Linarith.Frontend
 import Mathlib.Data.Matrix.Basic
-import Mathlib.Data.Nat.Dist
+
+def Array.modify' (a : Array α) (i : Fin a.size) (f : α → α) : Array α := 
+  a.set i (f (a.get i))
+
+theorem Array.size_modify' (a : Array α) (i : Fin a.size) (f : α → α)
+: (a.modify' i f).size = a.size := by
+  unfold modify'
+  rw [Array.size_set]
 
 def List.mapD (l : List α) (f : (a : α) → (ha : a ∈ l) → β) : List β :=
 match l with
@@ -40,26 +47,6 @@ theorem List.mem_mapD (l : List α) (f : (a : α) → (ha : a ∈ l) → β) (b 
         right
         rw [ih]
         exact ⟨a, h, rfl⟩
-
-namespace Fin 
-
-variable {n : ℕ}
-
-def dist (i j : Fin n) : ℕ := 
-  i.val.dist j.val
-
-def dist_comm (i j : Fin n) : i.dist j = j.dist i :=
-  Nat.dist_comm i.val j.val
-
-def dist_self (i : Fin n) : i.dist i = 0 :=
-  Nat.dist_self i.val
-
-def eq_of_dist_eq_zero {i j : Fin n} (h : i.dist j = 0)
-: i = j := by
-  ext
-  exact Nat.eq_of_dist_eq_zero h
-
-end Fin
 
 namespace Grid
 
@@ -124,15 +111,15 @@ namespace Day3
 
 inductive Tile
 | Period : Tile
-| Symbol : Tile
+| Symbol : Char → Tile
 | Digit : Fin 10 → Tile
-deriving DecidableEq 
+deriving DecidableEq
 
 namespace Tile
 
 def toChar : Tile → Char 
 | Period => '.'
-| Symbol => '*'
+| (Symbol c) => c
 | (Digit d) => d.val.digitChar
 
 def fromChar : Char → Tile
@@ -147,21 +134,26 @@ def fromChar : Char → Tile
 | '7' => Digit 7
 | '8' => Digit 8
 | '9' => Digit 9 
-| _ => Symbol 
+| c => Symbol c
 
 instance : ToString Tile where
-  toString t := t.toChar.toString
+  toString t := toString t.toChar
 
 def isDigit : Tile → Bool
 | Period => false 
-| Symbol => false
+| (Symbol _) => false
 | (Digit _) => true
 
 def toDigit (t : Tile) (ht : t.isDigit) : Fin 10 := 
 match t with
 | Period => False.elim (by cases ht)
-| Symbol => False.elim (by cases ht)
+| (Symbol _) => False.elim (by cases ht)
 | (Digit d) => d
+
+def isSymbol : Tile → Bool
+| Period => false
+| (Symbol _) => true
+| (Digit _) => false 
 
 end Tile
 
@@ -187,6 +179,7 @@ structure Subrow {m n} (schematic : Schematic m n) (row : Fin m) where
   (start : ℕ)
   (length : ℕ)
   (start_add_length_le : start + length ≤ n)
+deriving DecidableEq
 
 namespace Subrow
 
@@ -205,11 +198,18 @@ def indices (subrow : Subrow schematic row) : List (Fin n) :=
 def tiles (subrow : Subrow schematic row) : List Tile :=
   subrow.indices.map (fun j => schematic row j)
 
+instance : ToString (Subrow schematic row) where
+  toString subrow := String.join (subrow.tiles.map toString)
+
 structure Number {m n} (schematic : Schematic m n) (row : Fin m) where
   (subrow : Subrow schematic row) -- maybe this could be extends instead 
   (isDigit : ∀ i ∈ subrow.indices, (schematic row i).isDigit)
+deriving DecidableEq
 
 namespace Number
+
+instance : ToString (Number schematic row) where
+  toString number := toString number.subrow
 
 def digits (number : Number schematic row) : List (Fin 10) :=
   number.subrow.tiles.mapD fun t ht => t.toDigit (by
@@ -290,6 +290,10 @@ end Subrow
 structure Number {m n} (schematic : Schematic m n) where
   (row : Fin m)
   (number : Subrow.Number schematic row)
+deriving DecidableEq
+
+instance {m n} {schematic : Schematic m n} : ToString (Number schematic) where
+  toString number := toString number.number 
 
 def numbers {m n} (schematic : Schematic m n) : List (Number schematic) :=
   List.finRange m >>= fun row => Number.mk row <$> Subrow.numbers row
@@ -299,7 +303,76 @@ def sum {m n} (schematic : Schematic m n) : ℕ :=
     <$> schematic.numbers.filter fun number =>
       number.number.subrow.indices.any fun t =>
         (Grid.neighbors (number.row, t)).any fun p =>
-          schematic p.fst p.snd = Tile.Symbol).sum
+          (schematic p.fst p.snd).isSymbol).sum
+
+structure GridArray {m n} (schematic : Schematic m n) (α) where
+  (array : Array (Array α))
+  (h₁ : array.size = m)
+  (h₂ : ∀ {i} (h : i < array.size), array[i].size = n)
+
+namespace GridArray
+
+variable {m n} {schematic : Schematic m n} {α}
+
+instance [ToString α] : ToString (GridArray schematic α) where
+  toString grid := toString grid.array 
+
+def get (grid : GridArray schematic α) (p : Fin m × Fin n) : α :=
+  (grid.array.get
+    ⟨p.fst, by rw [grid.h₁]; exact p.fst.is_lt⟩).get
+      ⟨p.snd, by rw [Array.get_eq_getElem, grid.h₂]; exact p.snd.is_lt⟩
+
+def modify (grid : GridArray schematic α) (p : Fin m × Fin n) (f : α → α)
+: GridArray schematic α := {
+    array := grid.array.modify' ⟨p.fst, by rw [grid.h₁]; exact p.fst.is_lt⟩ fun row =>
+      row.modify p.snd f
+    h₁ := by rw [Array.size_modify']; exact grid.h₁
+    h₂ := by
+      intro i hi
+      unfold Array.modify'
+      dsimp
+      rw [Array.get_set]
+      split_ifs
+      · rw [Array.size_modify, grid.h₂]
+      · apply grid.h₂
+      convert hi using 1
+      rw [Array.size_modify']
+  }
+
+def const (schematic : Schematic m n) (a : α) : schematic.GridArray α where
+  array := Array.mkArray m (Array.mkArray n a)
+  h₁ := Array.size_mkArray _ _
+  h₂ := by
+    intro i hi
+    unfold mkArray
+    simp [Array.getElem_eq_data_get]
+
+end GridArray
+
+def numberArray {m n} (schematic : Schematic m n) : schematic.GridArray (Option (Number schematic)) := Id.run <| do
+  let mut array : schematic.GridArray (Option (Number schematic)) := GridArray.const schematic none
+  for number in schematic.numbers do
+    for i in number.number.subrow.indices do
+      array := array.modify (number.row, i) fun _ => some number
+  pure array
+
+def indices {m n} (_ : Schematic m n) : List (Fin m × Fin n) := do
+  let i ← List.finRange m
+  let j ← List.finRange n
+  pure (i, j)
+
+def gearRatio {m n} (schematic : Schematic m n) (p : Fin m × Fin n)
+  (numberArray : schematic.GridArray (Option schematic.Number)) : Option ℕ :=
+  let numbers := ((Grid.neighbors p).filterMap fun p =>
+    numberArray.get p).dedup
+  if schematic p.fst p.snd = Tile.Symbol '*' ∧ numbers.length = 2 then
+    some ((fun number => number.number.val) <$> numbers).prod
+  else 
+    none
+
+def gearRatioSum {m n} (schematic : Schematic m n) : ℕ :=
+  let numberArray := schematic.numberArray
+  (schematic.indices.filterMap (schematic.gearRatio · numberArray)).sum 
 
 end Schematic
 
@@ -320,10 +393,30 @@ def main : IO Unit := do
 
 end Task1
 
+namespace Task2
+
+def main : IO Unit := do
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day3/test.txt")
+  if let some ⟨_, _, schematic⟩ := Schematic.fromLines lines then
+    println! "Test: {schematic.gearRatioSum}"
+    println! "Expected: {467835}"
+  else
+    throw (IO.userError "bad schematic file")
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day3/task.txt")
+  if let some ⟨_, _, schematic⟩ := Schematic.fromLines lines then
+    println! "Task: {schematic.gearRatioSum}"
+  else
+    throw (IO.userError "bad schematic file")
+
+end Task2
+
 def main : IO Unit := do
   println! "Day 3"
   println! "Task 1"
   Task1.main
+  println! ""
+  println! "Task 2"
+  Task2.main
   println! ""
 
 end Day3
