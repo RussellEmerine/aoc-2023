@@ -86,6 +86,7 @@ def main : IO Unit := do
   Task1.main
   println! ""
   println! "Task 2"
-  Task2.main 
+  Task2.main
+  println! ""
 
 end Day4
