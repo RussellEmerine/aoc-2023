@@ -98,6 +98,62 @@ def min_location (almanac : Almanac) : Option ℕ :=
 
 end Almanac
 
+structure RangeAlmanac where
+  (seeds : List (ℕ × ℕ))
+  (maps : MapLabel → List (ℕ × ℕ × ℕ))
+
+namespace RangeAlmanac
+
+def pairs (acc : List (ℕ × ℕ)) : List ℕ → Option (List (ℕ × ℕ))
+| [] => some acc
+| (a :: b :: t) => pairs ((a, b) :: acc) t
+| _ => none
+
+def fromAlmanac (almanac : Almanac) : Except String RangeAlmanac :=
+match pairs [] almanac.seeds with
+| some seeds => Except.ok { seeds, maps := almanac.maps }
+| none => Except.error "invalid seeds"
+
+def parse : String → Except String RangeAlmanac :=
+  Almanac.parse >=> fromAlmanac
+
+def next (unshifted : List (ℕ × ℕ)) (shifted : List (ℕ × ℕ)) : List (ℕ × ℕ × ℕ) → List (ℕ × ℕ)
+| [] => (unshifted ++ shifted).filter (Prod.snd · > 0)
+| ((a, b, n) :: t) =>
+  let (unshifted', shifted') := Id.run <| do
+    let mut unshifted' : List (ℕ × ℕ) := []
+    let mut shifted' := shifted
+    for (start, length) in unshifted do
+      if start + length ≤ b then do
+        unshifted' := (start, length) :: unshifted'
+      else if start + length ≤ b + n then do
+        if start < b then do
+          unshifted' := (start, b - start) :: unshifted'
+          shifted' := (a, start + length - b) :: shifted'
+        else do
+          shifted' := (a + start - b, length) :: shifted'
+      else if start < b then do
+        unshifted' := (start, b - start) :: unshifted'
+        shifted' := (a, n) :: shifted'
+        unshifted' := (b + n, start + length - b - n) :: unshifted' 
+      else if start < b + n then do
+        shifted' := (a + start - b, b + n - start) :: shifted'
+        unshifted' := (b + n, start + length - b - n) :: unshifted' 
+      else do
+        unshifted' := (start, length) :: unshifted'
+    return (unshifted', shifted')
+  next unshifted' shifted' t
+
+def locationRanges (almanac : RangeAlmanac) : List (ℕ × ℕ) := 
+  MapLabel.univ.foldl
+    (fun current label => next current [] (almanac.maps label))
+    almanac.seeds
+
+def min_location (almanac : RangeAlmanac) : Option ℕ :=
+  (Prod.fst <$> almanac.locationRanges.filter (Prod.snd · > 0)).minimum?
+
+end RangeAlmanac
+
 namespace Task1
 
 def main : IO Unit := do
@@ -111,10 +167,26 @@ def main : IO Unit := do
 
 end Task1
 
+namespace Task2
+
+def main : IO Unit := do
+  let s ← IO.FS.readFile (System.FilePath.mk "Data/Day5/test.txt")
+  let almanac ← IO.ofExcept (RangeAlmanac.parse s)
+  println! "Test: {almanac.min_location}"
+  println! "Expected: {some 46}"
+  let s ← IO.FS.readFile (System.FilePath.mk "Data/Day5/task.txt")
+  let almanac ← IO.ofExcept (RangeAlmanac.parse s)
+  println! "Task: {almanac.min_location}"
+
+end Task2
+
 def main : IO Unit := do
   println! "Day 5"
   println! "Task 1"
   Task1.main
+  println! ""
+  println! "Task 2"
+  Task2.main
   println! ""
 
 end Day5
