@@ -74,6 +74,12 @@ theorem val_inj : val.Injective := by
 
 instance : LinearOrder Card := LinearOrder.lift' val val_inj
 
+def replaceJoker (c : Card) (r : Card) : Card :=
+  if c = Jack then r else c
+
+def shiftJoker (c : Card) : WithBot Card :=
+  if c = Jack then ⊥ else WithBot.some c 
+
 open Lean.Parsec 
 
 def parser : Lean.Parsec Card := do
@@ -150,6 +156,15 @@ instance : LinearOrder Hand :=
       congr
       exact Vector.eq _ _ h)
 
+def map (hand : Hand) (f : Card → Card) : Hand where
+  cards := hand.cards.map f 
+
+-- key insight: always optimal for jokers to be the same card 
+def jokerHand (hand : Hand) : Typ × List (WithBot Card) := (
+  Card.univ.foldl (fun typ c => max typ ((hand.map (Card.replaceJoker · c)).typ)) Typ.HighCard,
+  Card.shiftJoker <$> hand.cards.toList
+)
+
 open Lean.Parsec
 
 def parser : Lean.Parsec Hand := do
@@ -171,6 +186,10 @@ def winnings (game : Game) : ℕ :=
   let sorted := game.hands.heapSort (toLex · < toLex ·)
   ((fun (i, hand) => (i + 1) * hand.snd) <$> sorted.toList.enum).sum 
 
+def jokerWinnings (game : Game) : ℕ :=
+  let sorted := game.hands.heapSort (fun a b => toLex a.fst.jokerHand < toLex b.fst.jokerHand)
+  ((fun (i, hand) => (i + 1) * hand.snd) <$> sorted.toList.enum).sum 
+
 open Lean.Parsec
 
 def lineParser : Lean.Parsec (Hand × ℕ) := do
@@ -190,19 +209,35 @@ namespace Task1
 
 def main : IO Unit := do
   let lines ← IO.FS.lines (System.FilePath.mk "Data/Day7/test.txt")
-  let games ← IO.ofExcept (Game.fromArray lines)
-  println! "Test: {games.winnings}"
+  let game ← IO.ofExcept (Game.fromArray lines)
+  println! "Test: {game.winnings}"
   println! "Expected: {6440}"
   let lines ← IO.FS.lines (System.FilePath.mk "Data/Day7/task.txt")
-  let games ← IO.ofExcept (Game.fromArray lines)
-  println! "Task: {games.winnings}"
+  let game ← IO.ofExcept (Game.fromArray lines)
+  println! "Task: {game.winnings}"
 
 end Task1
+
+namespace Task2
+
+def main : IO Unit := do
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day7/test.txt")
+  let game ← IO.ofExcept (Game.fromArray lines)
+  println! "Test: {game.jokerWinnings}"
+  println! "Expected: {5905}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day7/task.txt")
+  let game ← IO.ofExcept (Game.fromArray lines)
+  println! "Task: {game.jokerWinnings}"
+
+end Task2
 
 def main : IO Unit := do
   println! "Day 7"
   println! "Task 1"
   Task1.main 
+  println! ""
+  println! "Task 2"
+  Task2.main 
   println! ""
 
 end Day7
