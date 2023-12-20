@@ -7,4 +7,4 @@ def main : IO Unit := do
   Day4.main
   Day5.main
   Day6.main
-  
+  Day7.main 
