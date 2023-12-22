@@ -10,3 +10,4 @@ import «Aoc2023».Day7
 import «Aoc2023».Day8
 import «Aoc2023».Day9
 import «Aoc2023».Day10
+import «Aoc2023».Day11

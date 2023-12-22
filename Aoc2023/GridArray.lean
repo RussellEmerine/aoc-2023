@@ -8,6 +8,8 @@ theorem Array.size_modify' (a : Array α) (i : Fin a.size) (f : α → α)
   unfold modify'
   rw [Array.size_set]
 
+abbrev Idx m n := Fin m × Fin n
+
 structure GridArray (m n : ℕ) (α) where
   (array : Array (Array α))
   (h₁ : array.size = m)
@@ -15,7 +17,7 @@ structure GridArray (m n : ℕ) (α) where
 
 namespace GridArray
 
-def indices (m n : ℕ) : List (Fin m × Fin n) :=
+def indices (m n : ℕ) : List (Idx m n) :=
   Prod.mk <$> List.finRange m <*> List.finRange n
 
 variable {m n} {α}
@@ -31,12 +33,12 @@ def ofFn (f : Fin m → Fin n → α) : GridArray m n α :=
 instance [ToString α] : ToString (GridArray m n α) where
   toString grid := toString grid.array 
 
-def get (grid : GridArray m n α) (p : Fin m × Fin n) : α :=
+def get (grid : GridArray m n α) (p : Idx m n) : α :=
   (grid.array.get
     ⟨p.fst, by rw [grid.h₁]; exact p.fst.is_lt⟩).get
       ⟨p.snd, by rw [Array.get_eq_getElem, grid.h₂]; exact p.snd.is_lt⟩
 
-def modify (grid : GridArray m n α) (p : Fin m × Fin n) (f : α → α)
+def modify (grid : GridArray m n α) (p : Idx m n) (f : α → α)
 : GridArray m n α := {
     array := grid.array.modify' ⟨p.fst, by rw [grid.h₁]; exact p.fst.is_lt⟩ fun row =>
       row.modify p.snd f
@@ -53,11 +55,14 @@ def modify (grid : GridArray m n α) (p : Fin m × Fin n) (f : α → α)
       rw [Array.size_modify']
   }
 
-def set (grid : GridArray m n α) (p : Fin m × Fin n) (a : α)
+def set (grid : GridArray m n α) (p : Idx m n) (a : α)
 : GridArray m n α :=
   grid.modify p (Function.const _ a)
 
 def values (grid : GridArray m n α) : List α :=
   grid.get <$> indices m n 
+
+def transpose (grid : GridArray m n α) : GridArray n m α :=
+  ofFn fun j i => grid.get (i, j)
 
 end GridArray
