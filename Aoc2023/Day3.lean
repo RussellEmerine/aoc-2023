@@ -1,13 +1,6 @@
 import Mathlib.Tactic.Linarith.Frontend
 import Mathlib.Data.Matrix.Basic
-
-def Array.modify' (a : Array α) (i : Fin a.size) (f : α → α) : Array α := 
-  a.set i (f (a.get i))
-
-theorem Array.size_modify' (a : Array α) (i : Fin a.size) (f : α → α)
-: (a.modify' i f).size = a.size := by
-  unfold modify'
-  rw [Array.size_set]
+import «Aoc2023».GridArray 
 
 def List.mapD (l : List α) (f : (a : α) → (ha : a ∈ l) → β) : List β :=
 match l with
@@ -305,6 +298,7 @@ def sum {m n} (schematic : Schematic m n) : ℕ :=
         (Grid.neighbors (number.row, t)).any fun p =>
           (schematic p.fst p.snd).isSymbol).sum
 
+-- originally wrote this version, but later work uses the library GridArray 
 structure GridArray {m n} (schematic : Schematic m n) (α) where
   (array : Array (Array α))
   (h₁ : array.size = m)

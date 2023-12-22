@@ -1,0 +1,139 @@
+import Mathlib.Logic.Equiv.Fin
+import «Aoc2023».GridArray
+
+namespace Day10
+
+inductive Tile
+| NS
+| EW
+| NW
+| NE
+| SW
+| SE
+| Ground
+
+namespace Tile
+
+def ofChar : Char → Tile
+| '|' => NS
+| '-' => EW
+| 'J' => NW
+| 'L' => NE
+| '7' => SW
+| 'F' => SE
+| 'S' => SE
+| _ => Ground 
+
+end Tile
+
+abbrev Idx m n := Fin m × Fin n
+
+namespace Idx
+
+def n {m n} (idx : Idx m n) : Idx m n := ((finRotate _).symm idx.fst, idx.snd)
+
+def s {m n} (idx : Idx m n) : Idx m n := (finRotate _ idx.fst, idx.snd)
+
+def e {m n} (idx : Idx m n) : Idx m n := (idx.fst, finRotate _ idx.snd)
+
+def w {m n} (idx : Idx m n) : Idx m n := (idx.fst, (finRotate _).symm idx.snd)
+
+end Idx
+
+structure Grid (m n : ℕ) where
+  (grid : GridArray m n Tile)
+  (start : Idx m n)
+
+namespace Grid
+
+def get (grid : Grid m n) (idx : Idx m n) : Tile :=
+  grid.grid.get idx 
+
+def next (grid : Grid m n) (prev : Idx m n) (idx : Idx m n) : Idx m n :=
+  let chooseTwo (a b : Idx m n) : Idx m n := if a = prev then b else a
+  match grid.get idx with
+  | Tile.NS => chooseTwo (Idx.n idx) (Idx.s idx)
+  | Tile.EW => chooseTwo (Idx.e idx) (Idx.w idx)
+  | Tile.NE => chooseTwo (Idx.n idx) (Idx.e idx)
+  | Tile.NW => chooseTwo (Idx.n idx) (Idx.w idx)
+  | Tile.SE => chooseTwo (Idx.s idx) (Idx.e idx)
+  | Tile.SW => chooseTwo (Idx.s idx) (Idx.w idx)
+  | Tile.Ground => idx 
+
+def loopAux 
+  (grid : Grid m n)
+  (prev : Idx m n)
+  (idx : Idx m n)
+  (acc : List (Idx m n))
+: ℕ → List (Idx m n)
+| 0 => []
+| (n + 1) =>
+  if idx = grid.start then
+    idx :: acc
+  else
+    loopAux grid idx (grid.next prev idx) (idx :: acc) n
+
+def loop {m n} (grid : Grid m n) : List (Idx m n) :=
+  loopAux grid grid.start (Idx.s grid.start) [grid.start] (m * n)
+
+def maxDistance {m n} (grid : Grid m n) : Option ℕ := Id.run <| do
+  let mut distance : GridArray m n (WithTop ℕ) := GridArray.ofFn (fun _ _ => ⊤)
+  for (d, idx) in grid.loop.enum do
+    distance := distance.modify idx (min · (WithTop.some d))
+  for (d, idx) in grid.loop.reverse.enum do
+    distance := distance.modify idx (min · (WithTop.some d))
+  return (distance.values.reduceOption).maximum?
+
+def ofLines (lines : Array String) : Except String ((m : ℕ) × (n : ℕ) × Grid m n) := do
+  let lines' := lines.map (List.toArray <| Tile.ofChar <$> String.toList ·)
+  let m := lines'.size
+  if hm : 0 < m then
+    let n := lines'[0].size
+    if hn : ∀ {i} (hi : i < m), lines'[i].size = n then
+      let grid : GridArray m n Tile := {
+        array := lines'
+        h₁ := rfl
+        h₂ := hn
+      }
+      if let (start :: _) :=
+        (GridArray.indices m n).filter fun idx =>
+          (lines.get? idx.fst).all fun s =>
+            (s.get? ⟨idx.snd⟩).all (· = 'S') 
+      then
+        return ⟨m, n, {
+          grid
+          start
+        }⟩
+      else
+        Except.error "cannot make Grid without S"
+    else 
+      Except.error "cannot make Grid of uneven lines"
+  else 
+    Except.error "cannot make Grid of empty array"
+
+end Grid
+
+namespace Task1
+
+def main : IO Unit := do
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/test1.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Test 1: {grid.maxDistance}"
+  println! "Expected: {some 4}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/test2.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Test 2: {grid.maxDistance}"
+  println! "Expected: {some 8}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/task.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Task: {grid.maxDistance}"
+
+end Task1
+
+def main : IO Unit := do
+  println! "Day 10"
+  println! "Task 1"
+  Task1.main
+  println! ""
+
+end Day10
