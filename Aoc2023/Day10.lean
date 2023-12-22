@@ -1,4 +1,5 @@
 import Mathlib.Logic.Equiv.Fin
+import Mathlib.Data.MLList.DepthFirst
 import «Aoc2023».GridArray
 
 namespace Day10
@@ -11,6 +12,7 @@ inductive Tile
 | SW
 | SE
 | Ground
+deriving Hashable, DecidableEq 
 
 namespace Tile
 
@@ -22,7 +24,12 @@ def ofChar : Char → Tile
 | '7' => SW
 | 'F' => SE
 | 'S' => SE
-| _ => Ground 
+| _ => Ground
+
+def facingN : Finset Tile := {NS, NW, NE}
+def facingS : Finset Tile := {NS, SW, SE}
+def facingE : Finset Tile := {EW, NE, SE}
+def facingW : Finset Tile := {EW, NW, SW}
 
 end Tile
 
@@ -84,6 +91,36 @@ def maxDistance {m n} (grid : Grid m n) : Option ℕ := Id.run <| do
     distance := distance.modify idx (min · (WithTop.some d))
   return (distance.values.reduceOption).maximum?
 
+def adj {m n} (grid : Grid m n)
+: GridArray (m + 1) (n + 1) (List (Idx (m + 1) (n + 1))) := Id.run <| do
+  let loopSet := Lean.HashSet.ofList grid.loop
+  let mut adj := GridArray.ofFn (fun (_ : Fin (m + 1)) (_ : Fin (n + 1)) => [])
+  for (i, j) in GridArray.indices m n do
+    if ¬loopSet.contains (i, j) ∨ grid.get (i, j) ∉ Tile.facingN then do
+      adj := adj.modify (i.castSucc, j.castSucc) ((i.castSucc, j.succ) :: ·)
+      adj := adj.modify (i.castSucc, j.succ) ((i.castSucc, j.castSucc) :: ·)
+    if ¬loopSet.contains (i, j) ∨ grid.get (i, j) ∉ Tile.facingS then do
+      adj := adj.modify (i.succ, j.castSucc) ((i.succ, j.succ) :: ·)
+      adj := adj.modify (i.succ, j.succ) ((i.succ, j.castSucc) :: ·)
+    if ¬loopSet.contains (i, j) ∨ grid.get (i, j) ∉ Tile.facingE then do
+      adj := adj.modify (i.castSucc, j.succ) ((i.succ, j.succ) :: ·)
+      adj := adj.modify (i.succ, j.succ) ((i.castSucc, j.succ) :: ·)
+    if ¬loopSet.contains (i, j) ∨ grid.get (i, j) ∉ Tile.facingW then do
+      adj := adj.modify (i.castSucc, j.castSucc) ((i.succ, j.castSucc) :: ·)
+      adj := adj.modify (i.succ, j.castSucc) ((i.castSucc, j.castSucc) :: ·)
+  return adj
+
+def enclosed {m n} (grid : Grid m n) : ℕ :=
+  let adj := grid.adj
+  let outer := depthFirstRemovingDuplicates' adj.get (⟨0, m.succ_pos⟩, ⟨0, n.succ_pos⟩)
+  let outerSet := Lean.HashSet.ofList outer
+  ((GridArray.indices m n).filter fun (i, j) =>
+    ¬outerSet.contains (i.castSucc, j.castSucc)
+  ∧ ¬outerSet.contains (i.succ, j.castSucc)
+  ∧ ¬outerSet.contains (i.castSucc, j.succ)
+  ∧ ¬outerSet.contains (i.succ, j.succ)
+    ).length
+
 def ofLines (lines : Array String) : Except String ((m : ℕ) × (n : ℕ) × Grid m n) := do
   let lines' := lines.map (List.toArray <| Tile.ofChar <$> String.toList ·)
   let m := lines'.size
@@ -130,10 +167,43 @@ def main : IO Unit := do
 
 end Task1
 
+namespace Task2
+
+def main : IO Unit := do
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/test1.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Test 1: {grid.enclosed}"
+  println! "Expected: {some 1}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/test2.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Test 2: {grid.enclosed}"
+  println! "Expected: {some 1}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/test3.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Test 3: {grid.enclosed}"
+  println! "Expected: {some 4}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/test4.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Test 4: {grid.enclosed}"
+  println! "Expected: {some 4}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/test5.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Test 5: {grid.enclosed}"
+  println! "Expected: {some 8}"
+  -- let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/task.txt")
+  -- let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  -- println! "Task: {grid.enclosed}"
+  println! "Task: [disabled for time, solution was 413]"
+
+end Task2
+
 def main : IO Unit := do
   println! "Day 10"
   println! "Task 1"
   Task1.main
+  println! ""
+  println! "Task 2"
+  Task2.main
   println! ""
 
 end Day10
