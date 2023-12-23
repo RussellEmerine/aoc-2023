@@ -45,6 +45,29 @@ def horizontalReflections (grid : GridArray m n Bool) : ℕ :=
 def reflectionSum (grid : GridArray m n Bool) : ℕ :=
   100 * horizontalReflections grid + verticalReflections grid
 
+def horizontalSmudgeReflect (grid : GridArray m n Bool) (row : Fin (m + 1)) : Bool := Id.run <| do
+  let mut smudges := 0
+  for i in (List.finRange m).filter (·.val < row.val) do
+    let j := 2 * row.val - i.val - 1
+    if hj : j < m then
+      let j : Fin m := ⟨j, hj⟩
+      for k in List.finRange n do
+        if grid.get (i, k) ≠ grid.get (j, k) then do
+          smudges := smudges + 1
+  return smudges = 1
+
+def verticalSmudgeReflect (grid : GridArray m n Bool) (col : Fin (n + 1)) : Bool :=
+  horizontalSmudgeReflect grid.transpose col 
+
+def horizontalSmudgeReflections (grid : GridArray m n Bool) : ℕ :=
+  (Fin.val <$> (List.finRange m).filter (horizontalSmudgeReflect grid)).sum 
+
+def verticalSmudgeReflections (grid : GridArray m n Bool) : ℕ :=
+  horizontalSmudgeReflections grid.transpose 
+
+def smudgeReflectionSum (grid : GridArray m n Bool) : ℕ :=
+  100 * horizontalSmudgeReflections grid + verticalSmudgeReflections grid
+
 namespace Task1
 
 def main : IO Unit := do
@@ -58,10 +81,26 @@ def main : IO Unit := do
 
 end Task1
 
+namespace Task2
+
+def main : IO Unit := do
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day13/test.txt")
+  let grids ← IO.ofExcept (maps lines)
+  println! "Test: {((fun ⟨_, _, grid⟩ => smudgeReflectionSum grid) <$> grids).sum}"
+  println! "Expected: {400}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day13/task.txt")
+  let grids ← IO.ofExcept (maps lines)
+  println! "Task: {((fun ⟨_, _, grid⟩ => smudgeReflectionSum grid) <$> grids).sum}"
+
+end Task2
+
 def main : IO Unit := do
   println! "Day 13"
   println! "Task 1"
   Task1.main
+  println! ""
+  println! "Task 2"
+  Task2.main
   println! ""
 
 end Day13
