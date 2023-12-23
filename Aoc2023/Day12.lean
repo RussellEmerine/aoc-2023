@@ -49,6 +49,15 @@ def arrangements (record : Record) : ℕ := Id.run <| do
     dp := dp'
   return dp.last 
 
+def unfold (record : Record) : Record where
+  damaged :=
+    let d := record.damaged
+    let n := #[none]
+    #[d, n, d, n, d, n, d, n, d].join
+  groups :=
+    let g := record.groups 
+    [g, g, g, g, g].join
+
 open Lean.Parsec
 
 def parser : Lean.Parsec Record := do
@@ -75,10 +84,26 @@ def main : IO Unit := do
 
 end Task1
 
+namespace Task2
+
+def main : IO Unit := do
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day12/test.txt")
+  let records ← IO.ofExcept (lines.mapM Record.parser.run)
+  println! "Test: {(records.map (·.unfold.arrangements)).toList.sum}"
+  println! "Expected: {525152}"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day12/task.txt")
+  let records ← IO.ofExcept (lines.mapM Record.parser.run)
+  println! "Task: {(records.map (·.unfold.arrangements)).toList.sum}"
+
+end Task2
+
 def main : IO Unit := do
   println! "Day 12"
   println! "Task 1"
   Task1.main
+  println! ""
+  println! "Task 2"
+  Task2.main
   println! ""
 
 end Day12
