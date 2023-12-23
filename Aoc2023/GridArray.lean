@@ -65,4 +65,10 @@ def values (grid : GridArray m n α) : List α :=
 def transpose (grid : GridArray m n α) : GridArray n m α :=
   ofFn fun j i => grid.get (i, j)
 
+def row (grid : GridArray m n α) (i : Fin m) : Array α :=
+  grid.array[i]'(by rw [grid.h₁]; exact i.is_lt)
+
+def col (grid : GridArray m n α) (j : Fin n) : Array α :=
+  ((fun i => grid.get (i, j)) <$> List.finRange m).toArray 
+
 end GridArray
