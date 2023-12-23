@@ -71,4 +71,17 @@ def row (grid : GridArray m n α) (i : Fin m) : Array α :=
 def col (grid : GridArray m n α) (j : Fin n) : Array α :=
   ((fun i => grid.get (i, j)) <$> List.finRange m).toArray 
 
+def ofLines (lines : Array (Array α)) : Except String ((m : ℕ) × (n : ℕ) × GridArray m n α) := do
+  let m := lines.size
+  if hm : 0 < m then
+    let n := lines[0].size
+    if hn : ∀ {i} (hi : i < m), lines[i].size = n then
+      return ⟨m, n, {
+        array := lines 
+        h₁ := rfl
+        h₂ := hn
+      }⟩
+    else Except.error "can't make GridArray of uneven array"
+  else Except.error "can't make GridArray of empty array"
+
 end GridArray
