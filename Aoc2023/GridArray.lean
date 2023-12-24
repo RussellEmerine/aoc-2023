@@ -14,8 +14,12 @@ structure GridArray (m n : ℕ) (α) where
   (array : Array (Array α))
   (h₁ : array.size = m)
   (h₂ : ∀ {i} (h : i < array.size), array[i].size = n)
+deriving DecidableEq
 
 namespace GridArray
+
+instance [Hashable α] : Hashable (GridArray m n α) where
+  hash grid := mixHash 20 (hash grid.array) 
 
 def indices (m n : ℕ) : List (Idx m n) :=
   Prod.mk <$> List.finRange m <*> List.finRange n
@@ -83,5 +87,20 @@ def ofLines (lines : Array (Array α)) : Except String ((m : ℕ) × (n : ℕ) �
       }⟩
     else Except.error "can't make GridArray of uneven array"
   else Except.error "can't make GridArray of empty array"
+
+-- reverse the ordering *of the rows*, e.g. [[a, b], [c, d]] => [[c, d], [a, b]]
+def reverseRows (grid : GridArray m n α) : GridArray m n α where
+  array := grid.array.reverse
+  h₁ := by rw [Array.size_reverse, grid.h₁]
+  h₂ := by
+    intro i hi
+    have := grid.array.reverse.getElem_mem_data hi
+    rw [Array.reverse_data, List.mem_reverse, List.mem_iff_get] at this
+    rcases this with ⟨j, hj⟩
+    rw [← hj, ← Array.getElem_eq_data_get, grid.h₂ j.is_lt]
+
+-- [[a, b], [c, d]] => [[b, a], [d, c]]
+def reverseCols (grid : GridArray m n α) : GridArray m n α :=
+  grid.transpose.reverseRows.transpose
 
 end GridArray
