@@ -1,4 +1,5 @@
 import Mathlib.Data.Matrix.Basic
+import Mathlib.Tactic.DeriveFintype
 
 def Array.modify' (a : Array α) (i : Fin a.size) (f : α → α) : Array α := 
   a.set i (f (a.get i))
@@ -75,19 +76,23 @@ def row (grid : GridArray m n α) (i : Fin m) : Array α :=
 def col (grid : GridArray m n α) (j : Fin n) : Array α :=
   ((fun i => grid.get (i, j)) <$> List.finRange m).toArray 
 
-def ofLines (lines : Array (Array α)) : Except String ((m : ℕ) × (n : ℕ) × GridArray m n α) := do
+def ofLines' (lines : Array (Array α)) : Except String ((m : ℕ) × (n : ℕ) × GridArray (m + 1) (n + 1) α) := do
   let m := lines.size
   if hm : 0 < m then
     let n := lines[0].size
-    if hn : ∀ {i} (hi : i < m), lines[i].size = n then
-      return ⟨m, n, {
+    if hn : 0 < n ∧ ∀ {i} (hi : i < m), lines[i].size = n then
+      return ⟨m - 1, n - 1, {
         array := lines 
-        h₁ := rfl
-        h₂ := hn
+        h₁ := by rw [Nat.sub_add_cancel hm]
+        h₂ := by intro i hi; rw [hn.right, Nat.sub_add_cancel hn.left]
       }⟩
     else Except.error "can't make GridArray of uneven array"
   else Except.error "can't make GridArray of empty array"
 
+def ofLines (lines : Array (Array α)) : Except String ((m : ℕ) × (n : ℕ) × GridArray m n α) := do
+  let ⟨m, n, grid⟩ ← ofLines' lines
+  return ⟨m + 1, n + 1, grid⟩ 
+  
 -- reverse the ordering *of the rows*, e.g. [[a, b], [c, d]] => [[c, d], [a, b]]
 def reverseRows (grid : GridArray m n α) : GridArray m n α where
   array := grid.array.reverse

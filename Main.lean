@@ -16,3 +16,4 @@ def main : IO Unit := do
   Day13.main
   Day14.main
   Day15.main  
+  Day16.main  

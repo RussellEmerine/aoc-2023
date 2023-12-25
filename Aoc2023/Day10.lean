@@ -1,5 +1,5 @@
 import Mathlib.Logic.Equiv.Fin
-import Mathlib.Data.MLList.DepthFirst
+import «Aoc2023».DFS 
 import «Aoc2023».GridArray
 
 namespace Day10
@@ -12,7 +12,7 @@ inductive Tile
 | SW
 | SE
 | Ground
-deriving Hashable, DecidableEq 
+deriving Hashable, DecidableEq, Fintype 
 
 namespace Tile
 
@@ -112,13 +112,12 @@ def adj {m n} (grid : Grid m n)
 
 def enclosed {m n} (grid : Grid m n) : ℕ :=
   let adj := grid.adj
-  let outer := depthFirstRemovingDuplicates' adj.get (⟨0, m.succ_pos⟩, ⟨0, n.succ_pos⟩)
-  let outerSet := Lean.HashSet.ofList outer
+  let outer := dfs adj.get (⟨0, m.succ_pos⟩, ⟨0, n.succ_pos⟩)
   ((GridArray.indices m n).filter fun (i, j) =>
-    ¬outerSet.contains (i.castSucc, j.castSucc)
-  ∧ ¬outerSet.contains (i.succ, j.castSucc)
-  ∧ ¬outerSet.contains (i.castSucc, j.succ)
-  ∧ ¬outerSet.contains (i.succ, j.succ)
+    ¬outer.contains (i.castSucc, j.castSucc)
+  ∧ ¬outer.contains (i.succ, j.castSucc)
+  ∧ ¬outer.contains (i.castSucc, j.succ)
+  ∧ ¬outer.contains (i.succ, j.succ)
     ).length
 
 def ofLines (lines : Array String) : Except String ((m : ℕ) × (n : ℕ) × Grid m n) := do
@@ -190,10 +189,10 @@ def main : IO Unit := do
   let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
   println! "Test 5: {grid.enclosed}"
   println! "Expected: {some 8}"
-  -- let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/task.txt")
-  -- let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
-  -- println! "Task: {grid.enclosed}"
-  println! "Task: [disabled for time, solution was 413]"
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day10/task.txt")
+  let ⟨_, _, grid⟩ ← IO.ofExcept (Grid.ofLines lines)
+  println! "Task: {grid.enclosed}"
+--  println! "Task: [disabled for time, solution was 413]"
 
 end Task2
 
