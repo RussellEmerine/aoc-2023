@@ -1,8 +1,10 @@
 import Mathlib.Data.Fintype.Card
 import Mathlib.Data.BinaryHeap
 
+abbrev WeightedGraph α := α → List (α × ℕ)
+
 def dijkstraAux [BEq α] [Hashable α] 
-  (f : α → List (α × ℕ))
+  (f : WeightedGraph α)
   (q : BinaryHeap (ℕ × α) (·.fst > ·.fst))
   (map : Std.HashMap α ℕ)
   (n : ℕ)
@@ -21,7 +23,7 @@ def dijkstraAux [BEq α] [Hashable α]
           q' := q'.insert (d + w, c)
       return dijkstraAux f q' map' n
 
-def dijkstra [BEq α] [Hashable α] [Fintype α] (f : α → List (α × ℕ)) (a : α)
+def dijkstra [BEq α] [Hashable α] [Fintype α] (f : WeightedGraph α) (a : α)
 : Std.HashMap α ℕ :=
   dijkstraAux f (BinaryHeap.singleton _ (0, a)) {} (Fintype.card α * Fintype.card α * Fintype.card α)
 -- i think the iteration bound is actually |α|² but just in case
