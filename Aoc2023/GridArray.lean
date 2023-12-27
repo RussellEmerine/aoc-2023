@@ -20,7 +20,7 @@ deriving DecidableEq
 namespace GridArray
 
 instance [Hashable α] : Hashable (GridArray m n α) where
-  hash grid := mixHash 20 (hash grid.array) 
+  hash grid := mixHash 20 (hash grid.array)
 
 def indices (m n : ℕ) : List (Idx m n) :=
   Prod.mk <$> List.finRange m <*> List.finRange n
@@ -34,6 +34,9 @@ def ofMatrix (mat : Matrix (Fin m) (Fin n) α) : GridArray m n α where
 
 def ofFn (f : Fin m → Fin n → α) : GridArray m n α :=
   ofMatrix (Matrix.of f)
+
+instance [Inhabited α] : Inhabited (GridArray m n α) where
+  default := ofFn default 
 
 instance [ToString α] : ToString (GridArray m n α) where
   toString grid := toString grid.array 
