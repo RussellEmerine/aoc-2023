@@ -11,7 +11,7 @@ def dfs [BEq α] [Hashable α] [Fintype α] (f : α → List α) (a : α)
 : Lean.HashSet α := Id.run <| do
   let mut done : Lean.HashSet α := Lean.HashSet.ofList [a]
   let mut s : List α := [a]
-  for _ in List.range (Fintype.card α) do
+  for _ in [0 : Fintype.card α * Fintype.card α] do
     match s with
     | [] => return done 
     | (a :: s') => 
