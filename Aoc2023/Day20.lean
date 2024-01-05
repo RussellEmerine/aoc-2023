@@ -107,6 +107,41 @@ def pulseProduct (sys' : System) : ℕ := Id.run <| do
     hi := hi + dhi
   return lo * hi
 
+def untilModule (sys' : System) (s : String) : System × Bool := Id.run <| do
+  let mut sys := sys'
+  let mut q := Std.Queue.empty.enqueue ("button", "broadcaster", Pulse.low)
+  for _ in [0 : sys'.size * sys'.size * sys'.size] do
+    match q.dequeue? with
+    | none => return (sys, false)
+    | some (sig@(_, to, pulse), q') => 
+      q := q'
+      if (to, pulse) = (s, Pulse.low) then
+        return (sys, true) 
+      if let some mod := sys[to] then 
+        let (mod', out) := mod.run sig
+        sys := sys.insert to mod'
+        for sig in out do
+          q := q.enqueue sig
+  return ({}, false)
+
+def buttonUntilModule (sys' : System) (s : String) : ℕ := Id.run <| do
+  let mut sys := sys'
+  let mut count := 0
+  for _ in [0 : 100000000] do
+    let (sys', rx) := sys.untilModule s
+    count := count + 1
+    if rx then
+      return count 
+    sys := sys'  
+  return 0
+
+def buttonUntilRx (sys : System) : ℕ :=
+  let kv := sys.buttonUntilModule "kv"
+  let vm := sys.buttonUntilModule "vm"
+  let kl := sys.buttonUntilModule "kl"
+  let vb := sys.buttonUntilModule "vb"
+  [kv, vm, kl, vb].foldl Nat.lcm 1
+
 def ofLines (lines : Array String) : Except String System := do
   let map' ← lines.mapM Module.parser.run
   let mut map := Std.HashMap.ofList ((fun module => (module.name, module)) <$> map'.toList)
@@ -141,10 +176,30 @@ def main : IO Unit := do
 
 end Task1
 
+namespace Task2
+
+def main : IO Unit := do
+  let lines ← IO.FS.lines (System.FilePath.mk "Data/Day20/task.txt")
+  let sys ← IO.ofExcept (System.ofLines lines)
+  println! "Task: {sys.buttonUntilRx}"
+-- used to generate graph visualization input 
+--  println! "-------"
+--  for mod in sys.values do
+--    println! "{mod.name}"
+--  for mod in sys.values do
+--    for mod' in mod.out do
+--      println! "{mod.name} -> {mod'}"
+--  println! "-------"
+
+end Task2
+
 def main : IO Unit := do
   println! "Day 20"
   println! "Task 1"
   Task1.main
+  println! ""
+  println! "Task 2"
+  Task2.main
   println! ""
 
 end Day20
